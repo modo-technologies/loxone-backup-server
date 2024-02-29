@@ -18,8 +18,8 @@ export async function downloadFile(
     url: fileUrl,
     responseType: "stream",
     auth: {
-      username: "varun",
-      password: "yPRBUinSui",
+      username: auth.username,
+      password: auth.password,
     },
   }).then((response) => {
     response.data.pipe(writer);

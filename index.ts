@@ -8,6 +8,7 @@ import bodyParser from "body-parser";
 import miniserverRoutes from "./routes/miniserverRoutes";
 import backupTask from "./services/cronService";
 import path from "path";
+import authenticateToken from "./helpers/authenticateToken";
 
 const port: number = 3001;
 const app: Express = express();
@@ -19,7 +20,7 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use("/api/auth", authRoutes);
-app.use("/api/miniserver", miniserverRoutes);
+app.use("/api/miniserver", authenticateToken, miniserverRoutes);
 
 app.post("/abc", async (req, res) => {
   try {

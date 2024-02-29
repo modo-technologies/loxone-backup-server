@@ -1,8 +1,19 @@
+import path from "path";
 import mongoConnection from "../db";
-import { verifyJwt } from "../helpers/verifyJwt";
 import { User } from "../models/user";
-import { IJwt, IMiniserverController, IMiniserverDetails } from "../types";
+import {
+  IGetUserAuthInfoRequest,
+  IMiniserverController,
+  IMiniserverDetails,
+} from "../types";
 import jwt from "jsonwebtoken";
+import fs from "fs";
+
+const EBS_DIR = path.join(
+  "C:/Users/",
+  decodeURIComponent("Tanith%20Flory"),
+  `/Documents/`
+);
 
 const miniServerController: IMiniserverController = {
   addNewServer: async (req, res) => {
@@ -59,17 +70,8 @@ const miniServerController: IMiniserverController = {
 
   getMiniservers: async (req, res) => {
     try {
-      const authorizationHeader = req.headers.authorization;
+      const { _id } = (req as IGetUserAuthInfoRequest).user;
 
-      if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
-        return res
-          .status(401)
-          .json({ error: "Invalid or missing access token" });
-      }
-
-      const accessToken = authorizationHeader.slice("Bearer ".length);
-
-      const _id = verifyJwt(accessToken, res, req);
       await mongoConnection();
       const user = await User.findById(_id);
       if (!user) {
@@ -82,6 +84,61 @@ const miniServerController: IMiniserverController = {
       console.error("Error fetching miniservers:", error);
       res.status(500).json({ error: "Internal server error" });
     }
+  },
+
+  getBackups: async (req, res) => {
+    try {
+      await mongoConnection();
+      const { _id } = (req as IGetUserAuthInfoRequest).user;
+
+      const { _id: serverId } = req.query;
+
+      const user = await User.findOne(
+        { _id },
+        { servers: { $elemMatch: { _id: serverId } } }
+      );
+      if (!user) {
+        throw "User Not Found";
+      }
+
+      if (user.servers[0].backups.length === 0) {
+        throw "No backups found";
+      }
+
+      return res.status(200).json({ backups: user?.servers[0].backups });
+    } catch (error) {
+      return res.status(500).json({ message: "Server Error" });
+    }
+  },
+
+  downloadBackup: async (req, res) => {
+    try {
+      const { _id } = (req as IGetUserAuthInfoRequest).user;
+      const { _id: serverId, fileName } = req.query;
+
+      const filePath = path.join(
+        EBS_DIR,
+        _id,
+        serverId as string,
+        `${fileName}.zip`
+      );
+
+      if (fs.existsSync(filePath)) {
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename=${fileName}.zip`
+        );
+        res.setHeader("Content-Type", "application/zip");
+        res.download(filePath, (err) => {
+          if (err) {
+            console.error("Error downloading file:", err);
+            res.status(500).send("Internal Server Error");
+          }
+        });
+      } else {
+        res.status(404).send("File not found");
+      }
+    } catch (error) {}
   },
 };
 export default miniServerController;

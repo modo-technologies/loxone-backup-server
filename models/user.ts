@@ -1,8 +1,6 @@
-import { ObjectId } from "mongodb";
 import mongoose from "mongoose";
 
 const usersSchema = new mongoose.Schema({
-  _id: ObjectId,
   email: {
     type: String,
     required: true,
@@ -14,7 +12,6 @@ const usersSchema = new mongoose.Schema({
   },
   servers: [
     {
-      _id: ObjectId,
       miniserver: String,
       name: String,
       serial_number: String,
@@ -24,7 +21,9 @@ const usersSchema = new mongoose.Schema({
       password: String,
       backups: [
         {
-          url: String,
+          path: String,
+          fileName: String,
+          date: Date,
           logs: [
             {
               text: String,
