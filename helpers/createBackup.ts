@@ -18,7 +18,7 @@ export default async function createBackup(
     const backupUrl = await getLoxoneBackupUrl(serial_number);
 
     if (!backupUrl) {
-      throw "Error generating backup url";
+      throw Error("Error generating backup url");
     }
 
     const fileName = generateFileName(name || "name_not_found");
@@ -45,8 +45,8 @@ export default async function createBackup(
       {
         $push: {
           "servers.$.backups": {
-            path: path.join(outputPath, `${fileName}.zip`),
             fileName: fileName,
+            date: new Date().toISOString(),
           },
         },
       }
@@ -59,6 +59,6 @@ export default async function createBackup(
     //   serverId as ObjectId
     // );
   } catch (error) {
-    console.error(error);
+    console.error("Error creating backup:", (error as any).message);
   }
 }

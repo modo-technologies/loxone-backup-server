@@ -9,7 +9,7 @@ export interface IMiniserverDetails {
   backupStatus: Status;
   _id: ObjectId;
   isChecked?: boolean;
-  miniserver?: string;
+  miniserver: string;
   lastBackup: Date;
   password: string;
   backups: [
@@ -42,9 +42,12 @@ export interface IAuthController {
 }
 export interface IMiniserverController {
   addNewServer(req: Request, res: Response): Promise<any>;
+  editMiniServer(req: Request, res: Response): Promise<any>;
   getMiniservers(req: Request, res: Response): Promise<any>;
+  deleteServer(req: Request, res: Response): Promise<any>;
   getBackups(req: Request, res: Response): Promise<any>;
   downloadBackup(req: Request, res: Response): Promise<any>;
+  deleteBackup(req: Request, res: Response): Promise<any>;
 }
 export interface IUserDetails {
   email: string;

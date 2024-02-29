@@ -21,7 +21,6 @@ const usersSchema = new mongoose.Schema({
       password: String,
       backups: [
         {
-          path: String,
           fileName: String,
           date: Date,
           logs: [

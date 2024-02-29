@@ -6,19 +6,13 @@ import {
   IMiniserverController,
   IMiniserverDetails,
 } from "../types";
-import jwt from "jsonwebtoken";
 import fs from "fs";
-
-const EBS_DIR = path.join(
-  "C:/Users/",
-  decodeURIComponent("Tanith%20Flory"),
-  `/Documents/`
-);
+import EBS_DIR from "../config";
+import validateServer from "../helpers/validateServer";
+import { decryptData } from "../services/encryption";
 
 const miniServerController: IMiniserverController = {
   addNewServer: async (req, res) => {
-    await mongoConnection();
-
     try {
       const {
         name,
@@ -26,13 +20,16 @@ const miniServerController: IMiniserverController = {
         username,
         backupStatus,
         miniserver,
-        accessToken,
         lastBackup,
         password,
       }: IMiniserverDetails & { accessToken: string } = req.body;
-      const decodedToken = jwt.verify(accessToken, "zcxvbn");
-      const { _id }: any = decodedToken;
+      const { _id } = (req as IGetUserAuthInfoRequest).user;
 
+      if (!validateServer(req.body)) {
+        return res.status(400).json({ message: "Missing Fields" });
+      }
+
+      await mongoConnection();
       const existingServer = await User.findOne({
         _id,
         "servers.serial_number": serial_number,
@@ -54,7 +51,6 @@ const miniServerController: IMiniserverController = {
               username,
               backupStatus,
               miniserver,
-              accessToken,
               lastBackup,
               password,
             },
@@ -65,6 +61,47 @@ const miniServerController: IMiniserverController = {
       res.status(200).send("Server added successfully.");
     } catch (error) {
       console.log(error);
+    }
+  },
+
+  editMiniServer: async (req, res) => {
+    try {
+      const {
+        name,
+        serial_number,
+        username,
+        backupStatus,
+        miniserver,
+        lastBackup,
+        password,
+      }: IMiniserverDetails & { accessToken: string } = req.body;
+      const { _id } = (req as IGetUserAuthInfoRequest).user;
+      if (!validateServer(req.body)) {
+        return res.status(400).json({ message: "Missing Fields" });
+      }
+
+      await mongoConnection();
+
+      await User.updateOne(
+        { _id, "servers.serial_number": serial_number },
+        {
+          $set: {
+            "servers.$.name": name,
+            "servers.$.username": username,
+            "servers.$.backupStatus": backupStatus,
+            "servers.$.miniserver": miniserver,
+            "servers.$.lastBackup": lastBackup,
+            "servers.$.password": password,
+          },
+        }
+      );
+
+      res
+        .status(200)
+        .json({ message: "Successfully edited the server details." });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ error: "Internal server error" });
     }
   },
 
@@ -86,6 +123,36 @@ const miniServerController: IMiniserverController = {
     }
   },
 
+  deleteServer: async (req, res) => {
+    try {
+      const { _id } = (req as IGetUserAuthInfoRequest).user;
+
+      const { pass, _id: serverId } = req.body;
+      
+      await mongoConnection();
+
+      const user = await User.findOne({ _id });
+
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const verifyPass = await decryptData(pass as string, user.pass);
+
+      if (!verifyPass) {
+        return res.status(401).json({ message: "Invalid password." });
+      }
+
+      const deletion = await User.updateOne(
+        { _id, "servers._id": serverId },
+        { $pull: { servers: { _id: serverId } } }
+      );
+
+      console.log(deletion);
+      res.status(200).json({ message: "Successfully deleted the server" });
+    } catch (error) {
+      console.log(error);
+    }
+  },
+
   getBackups: async (req, res) => {
     try {
       await mongoConnection();
@@ -98,11 +165,10 @@ const miniServerController: IMiniserverController = {
         { servers: { $elemMatch: { _id: serverId } } }
       );
       if (!user) {
-        throw "User Not Found";
+        return res.status(404).json({ message: "User not found" });
       }
-
       if (user.servers[0].backups.length === 0) {
-        throw "No backups found";
+        return res.status(404).json({ message: "Backups not found" });
       }
 
       return res.status(200).json({ backups: user?.servers[0].backups });
@@ -123,22 +189,55 @@ const miniServerController: IMiniserverController = {
         `${fileName}.zip`
       );
 
-      if (fs.existsSync(filePath)) {
-        res.setHeader(
-          "Content-Disposition",
-          `attachment; filename=${fileName}.zip`
-        );
-        res.setHeader("Content-Type", "application/zip");
-        res.download(filePath, (err) => {
-          if (err) {
-            console.error("Error downloading file:", err);
-            res.status(500).send("Internal Server Error");
-          }
-        });
-      } else {
-        res.status(404).send("File not found");
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).send("File not found");
       }
-    } catch (error) {}
+
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=${fileName}.zip`
+      );
+      res.setHeader("Content-Type", "application/zip");
+      res.download(filePath, (err) => {
+        if (err) {
+          console.error("Error downloading file:", err);
+          res.status(500).send("Internal Server Error");
+        }
+      });
+    } catch (error) {
+      return res.status(500).json({ message: "Server Error" });
+    }
+  },
+
+  deleteBackup: async (req, res) => {
+    try {
+      const { _id } = (req as IGetUserAuthInfoRequest).user;
+      const { _id: serverId, fileName, backupId } = req.query;
+
+      const filePath = path.join(
+        EBS_DIR,
+        _id,
+        serverId as string,
+        `${fileName}.zip`
+      );
+
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      fs.unlinkSync(filePath);
+
+      await mongoConnection();
+
+      await User.updateOne(
+        { _id, "servers._id": serverId },
+        { $pull: { "servers.$.backups": { _id: backupId } } }
+      );
+
+      res.status(200).json({ message: "Successful" });
+    } catch (error) {
+      res.status(500).json({ message: "Server Error" });
+    }
   },
 };
 export default miniServerController;
