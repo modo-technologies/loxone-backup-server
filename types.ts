@@ -39,6 +39,7 @@ export interface IAuth {
 export interface IAuthController {
   signUp(req: Request, res: Response): Promise<any>;
   loginHandler(req: Request, res: Response): Promise<any>;
+  changePass(req: Request, res: Response): Promise<any>;
 }
 export interface IMiniserverController {
   addNewServer(req: Request, res: Response): Promise<any>;

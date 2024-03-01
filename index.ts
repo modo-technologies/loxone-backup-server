@@ -1,14 +1,14 @@
 import express, { Express } from "express";
 import cors from "cors";
 import authRoutes from "./routes/authRoutes";
-import mongoConnection from "./db";
-import { User } from "./models/user";
-import { encryptData } from "./services/encryption";
 import bodyParser from "body-parser";
 import miniserverRoutes from "./routes/miniserverRoutes";
 import backupTask from "./services/cronService";
 import path from "path";
-import authenticateToken from "./helpers/authenticateToken";
+import authenticateToken from "./middlewares/authenticateToken";
+import limiter from "./middlewares/rateLimiter";
+import helmet from "helmet";
+import authController from "./controllers/authController";
 
 const port: number = 3001;
 const app: Express = express();
@@ -17,36 +17,13 @@ backupTask.start();
 
 app.use(express.json());
 app.use(cors());
+app.use(helmet());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use("/api/auth", authRoutes);
-app.use("/api/miniserver", authenticateToken, miniserverRoutes);
+app.post("/api/auth/change-pass", authenticateToken, authController.changePass);
 
-app.post("/abc", async (req, res) => {
-  try {
-    await mongoConnection();
-    const { email, pass } = req.body;
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res
-        .status(400)
-        .json({ error: "User with this email already exists" });
-    }
-    const hashedPassword = await encryptData(pass);
-
-    const newUser = new User({
-      email,
-      pass: hashedPassword,
-    });
-
-    await newUser.save();
-    res.status(201).json({ message: "User created successfully" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+app.use("/api/miniserver", limiter, authenticateToken, miniserverRoutes);
 
 app.use(express.static(path.join(__dirname, "/client")));
 

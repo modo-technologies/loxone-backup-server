@@ -8,7 +8,10 @@ const usersSchema = new mongoose.Schema({
   },
   pass: {
     type: String,
-    default: null,
+    required: true,
+  },
+  accessToken: {
+    type: String,
   },
   servers: [
     {

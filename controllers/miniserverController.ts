@@ -10,6 +10,7 @@ import fs from "fs";
 import EBS_DIR from "../config";
 import validateServer from "../helpers/validateServer";
 import { decryptData } from "../services/encryption";
+const rimraf = require("rimraf");
 
 const miniServerController: IMiniserverController = {
   addNewServer: async (req, res) => {
@@ -128,7 +129,7 @@ const miniServerController: IMiniserverController = {
       const { _id } = (req as IGetUserAuthInfoRequest).user;
 
       const { pass, _id: serverId } = req.body;
-      
+
       await mongoConnection();
 
       const user = await User.findOne({ _id });
@@ -141,12 +142,15 @@ const miniServerController: IMiniserverController = {
         return res.status(401).json({ message: "Invalid password." });
       }
 
-      const deletion = await User.updateOne(
-        { _id, "servers._id": serverId },
-        { $pull: { servers: { _id: serverId } } }
-      );
+      fs.rmdir(path.join(EBS_DIR, _id, serverId), async (error) => {
+        if (error) return;
+        
+        await User.updateOne(
+          { _id, "servers._id": serverId },
+          { $pull: { servers: { _id: serverId } } }
+        );
+      });
 
-      console.log(deletion);
       res.status(200).json({ message: "Successfully deleted the server" });
     } catch (error) {
       console.log(error);
@@ -225,14 +229,18 @@ const miniServerController: IMiniserverController = {
         return res.status(404).json({ message: "File not found" });
       }
 
-      fs.unlinkSync(filePath);
+      fs.unlink(filePath, async (error) => {
+        if (error) {
+          return;
+        } else {
+          await mongoConnection();
 
-      await mongoConnection();
-
-      await User.updateOne(
-        { _id, "servers._id": serverId },
-        { $pull: { "servers.$.backups": { _id: backupId } } }
-      );
+          await User.updateOne(
+            { _id, "servers._id": serverId },
+            { $pull: { "servers.$.backups": { _id: backupId } } }
+          );
+        }
+      });
 
       res.status(200).json({ message: "Successful" });
     } catch (error) {

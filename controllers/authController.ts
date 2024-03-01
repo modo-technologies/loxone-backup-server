@@ -1,15 +1,18 @@
 import mongoConnection from "../db";
 import { encryptData, decryptData } from "../services/encryption";
-import { IAuthController, IUserDetails, ILoginDetails } from "../types";
+import {
+  IAuthController,
+  IUserDetails,
+  ILoginDetails,
+  IGetUserAuthInfoRequest,
+} from "../types";
 import { User } from "../models/user";
 import getAccessToken from "../helpers/getAccessToken";
 
 const authController: IAuthController = {
   signUp: async (req, res) => {
     try {
-      console.log("ac");
       const { email, pass }: IUserDetails = req.body;
-      const otp = Math.floor(Math.random() * 600000) + 100000;
 
       await mongoConnection();
       const response = await User.findOne({ email });
@@ -22,10 +25,10 @@ const authController: IAuthController = {
           pass: hashedPass,
         });
         await user.save();
-        return res.status(200).json({ message: "OK" });
+        return res.status(200).json({ message: "User created." });
       }
 
-      return res.status(200).json({ message: "OK" });
+      return res.status(200).json({ message: "User already exists." });
     } catch (err: unknown) {
       console.log(err);
       res.status(500).json({ message: "Internal Server Error" });
@@ -52,10 +55,43 @@ const authController: IAuthController = {
         email,
       });
 
+      await User.updateOne({ email }, { $set: { accessToken } });
+
       res.status(200).json(accessToken);
     } catch (err) {
       console.log(err);
       res.status(500).json({ message: "Internal Server Error!" });
+    }
+  },
+  changePass: async (req, res) => {
+    try {
+      const { _id } = (req as IGetUserAuthInfoRequest).user;
+      const { newPassword, currentPassword } = req.body;
+      if (!newPassword || !currentPassword) {
+        return res.status(422).json({ message: "Missing Parameters" });
+      }
+
+      const user = await User.findOne({ _id });
+
+      if (!user) {
+        return res.status(404).json({ message: "User doesn't exist! " });
+      }
+
+      const verifyPass = await decryptData(currentPassword, user.pass);
+      if (!verifyPass) {
+        return res
+          .status(401)
+          .json({ message: "Invalid Password. Enter your SafeSync password." });
+      }
+
+      const hashPass = await encryptData(newPassword);
+
+      await User.findOneAndUpdate({ _id }, { $set: { pass: hashPass } });
+
+      res.status(200).json({ message: "Successful" });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ message: "Server Error" });
     }
   },
 };
