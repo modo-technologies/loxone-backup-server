@@ -10,6 +10,7 @@ import fs from "fs";
 import EBS_DIR from "../config";
 import validateServer from "../helpers/validateServer";
 import { decryptData } from "../services/encryption";
+import createBackup from "../helpers/createBackup";
 const rimraf = require("rimraf");
 
 const miniServerController: IMiniserverController = {
@@ -23,7 +24,7 @@ const miniServerController: IMiniserverController = {
         miniserver,
         lastBackup,
         password,
-      }: IMiniserverDetails & { accessToken: string } = req.body;
+      }: IMiniserverDetails = req.body;
       const { _id } = (req as IGetUserAuthInfoRequest).user;
 
       if (!validateServer(req.body)) {
@@ -37,12 +38,12 @@ const miniServerController: IMiniserverController = {
       });
 
       if (existingServer) {
-        return res
-          .status(400)
-          .json("Server with the same serial number already exists.");
+        return res.status(400).json({
+          message: "Server with the same serial number already exists.",
+        });
       }
 
-      await User.updateOne(
+      const updatedDocument = await User.findOneAndUpdate(
         { _id },
         {
           $addToSet: {
@@ -56,10 +57,21 @@ const miniServerController: IMiniserverController = {
               password,
             },
           },
-        }
+        },
+        { new: true }
       );
 
-      res.status(200).send("Server added successfully.");
+      if (updatedDocument) {
+        const serverId = (updatedDocument as any).servers[
+          updatedDocument.servers.length - 1
+        ]._id;
+        await createBackup(
+          { ...req.body, _id: serverId } as IMiniserverDetails,
+          _id
+        );
+      }
+
+      res.status(200).json({ message: "Server added successfully." });
     } catch (error) {
       console.log(error);
     }
@@ -102,7 +114,7 @@ const miniServerController: IMiniserverController = {
         .json({ message: "Successfully edited the server details." });
     } catch (error) {
       console.log(error);
-      res.status(500).json({ error: "Internal server error" });
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 
@@ -113,14 +125,14 @@ const miniServerController: IMiniserverController = {
       await mongoConnection();
       const user = await User.findById(_id);
       if (!user) {
-        return res.status(404).json({ error: "User not found" });
+        return res.status(404).json({ message: "User not found" });
       }
 
       const miniservers = user.servers;
       res.status(200).json({ miniservers });
     } catch (error) {
       console.error("Error fetching miniservers:", error);
-      res.status(500).json({ error: "Internal server error" });
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 
@@ -141,15 +153,16 @@ const miniServerController: IMiniserverController = {
       if (!verifyPass) {
         return res.status(401).json({ message: "Invalid password." });
       }
+      const dir = path.join(EBS_DIR, _id, serverId);
 
-      fs.rmdir(path.join(EBS_DIR, _id, serverId), async (error) => {
-        if (error) return;
-        
-        await User.updateOne(
-          { _id, "servers._id": serverId },
-          { $pull: { servers: { _id: serverId } } }
-        );
-      });
+      if (fs.existsSync(dir)) {
+        fs.rmSync(dir, { recursive: true });
+      }
+
+      await User.updateOne(
+        { _id, "servers._id": serverId },
+        { $pull: { servers: { _id: serverId } } }
+      );
 
       res.status(200).json({ message: "Successfully deleted the server" });
     } catch (error) {
@@ -194,7 +207,7 @@ const miniServerController: IMiniserverController = {
       );
 
       if (!fs.existsSync(filePath)) {
-        return res.status(404).send("File not found");
+        return res.status(404).json({ message: "File not found" });
       }
 
       res.setHeader(
@@ -205,7 +218,7 @@ const miniServerController: IMiniserverController = {
       res.download(filePath, (err) => {
         if (err) {
           console.error("Error downloading file:", err);
-          res.status(500).send("Internal Server Error");
+          res.status(500).json({ message: "Internal Server Error" });
         }
       });
     } catch (error) {

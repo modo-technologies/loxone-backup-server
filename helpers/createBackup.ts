@@ -10,11 +10,11 @@ import { User } from "../models/user";
 
 export default async function createBackup(
   server: IMiniserverDetails,
-  userId: ObjectId
+  userId: ObjectId | string
 ) {
   try {
     const { username, password, serial_number, name, _id: serverId } = server;
-
+    console.log(server);
     const backupUrl = await getLoxoneBackupUrl(serial_number);
 
     if (!backupUrl) {

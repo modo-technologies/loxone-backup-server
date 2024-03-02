@@ -9,6 +9,7 @@ import authenticateToken from "./middlewares/authenticateToken";
 import limiter from "./middlewares/rateLimiter";
 import helmet from "helmet";
 import authController from "./controllers/authController";
+require('dotenv').config()
 
 const port: number = 3001;
 const app: Express = express();
