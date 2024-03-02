@@ -1,10 +1,9 @@
 import mongoose from "mongoose";
+import "dotenv/config";
 
 const mongoConnection = async () => {
   try {
-    await mongoose.connect(
-      `mongodb+srv://tanith:4gVaufELIV0GrBQF@cluster0.glj6qqi.mongodb.net/modo_backup`
-    );
+    await mongoose.connect(`${process.env.MONGODB_URI}`);
     console.log("Database Connected");
   } catch (err) {
     console.log(err);

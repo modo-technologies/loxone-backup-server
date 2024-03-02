@@ -1,7 +1,6 @@
 import express from "express";
 import bodyParser from "body-parser";
 import authController from "../controllers/authController";
-import { RequestResponse } from "../types";
 
 const router = express.Router();
 router.use(bodyParser.urlencoded({ extended: true }));
