@@ -49,10 +49,6 @@ app.use("/api/auth", rateLimiter_1.default, authRoutes_1.default);
 app.post("/api/miniserver/backup-now", rateLimiter_1.backupLimiter, authenticateToken_1.default, miniserverController_1.default.backupNow);
 app.use("/api/miniserver", rateLimiter_1.default, authenticateToken_1.default, miniserverRoutes_1.default);
 app.use(express_1.default.static(path_1.default.join(__dirname, "/client")));
-app.use(function (req, res, next) {
-    res.header("Cross-Origin-Opener-Policy", "same-origin");
-    next();
-});
 app.get("*", (_req, res) => {
     const filePath = path_1.default.join(__dirname, "/client/index.html");
     res.sendFile(filePath);

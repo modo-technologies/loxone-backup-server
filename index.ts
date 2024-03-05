@@ -34,11 +34,6 @@ app.use("/api/miniserver", limiter, authenticateToken, miniserverRoutes);
 
 app.use(express.static(path.join(__dirname, "/client")));
 
-app.use(function (req, res, next) {
-  res.header("Cross-Origin-Opener-Policy", "same-origin");
-  next();
-});
-
 app.get("*", (_req, res) => {
   const filePath = path.join(__dirname, "/client/index.html");
   res.sendFile(filePath);
