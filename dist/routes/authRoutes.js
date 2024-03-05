@@ -9,11 +9,12 @@ const authController_1 = __importDefault(require("../controllers/authController"
 const router = express_1.default.Router();
 router.use(body_parser_1.default.urlencoded({ extended: true }));
 router.post("/signup", authController_1.default.signUp);
+router.post("/change-pass", authController_1.default.changePass);
+router.post("/login", authController_1.default.loginHandler);
 // const otpHandler: RequestResponse = (req, res) => {
 //   authController.verifyOtp(req, res);
 // };
 // router.post("/verify-otp", otpHandler);
-router.post("/login", authController_1.default.loginHandler);
 // const forgotPassOtp: RequestResponse = (req, res) => {
 //   authController.forgotPassOtp(req, res);
 // };

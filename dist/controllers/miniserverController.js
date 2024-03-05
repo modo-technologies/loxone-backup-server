@@ -20,7 +20,6 @@ const config_1 = __importDefault(require("../config"));
 const validateServer_1 = __importDefault(require("../helpers/validateServer"));
 const encryption_1 = require("../services/encryption");
 const createBackup_1 = __importDefault(require("../helpers/createBackup"));
-const rimraf = require("rimraf");
 const miniServerController = {
     addNewServer: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
@@ -185,6 +184,20 @@ const miniServerController = {
                 }
             }));
             res.status(200).json({ message: "Successful" });
+        }
+        catch (error) {
+            res.status(500).json({ message: "Server Error" });
+        }
+    }),
+    backupNow: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const { _id } = req.user;
+            const { _id: serverId } = req.query;
+            const user = yield user_1.User.findOne({ _id, "servers._id": serverId });
+            if (!user)
+                return res.status(404).json({ message: "User not found" });
+            yield (0, createBackup_1.default)(user.servers[0], _id);
+            res.status(200).json({ message: "Successfully created a backup." });
         }
         catch (error) {
             res.status(500).json({ message: "Server Error" });

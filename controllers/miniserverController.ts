@@ -11,7 +11,6 @@ import EBS_DIR from "../config";
 import validateServer from "../helpers/validateServer";
 import { decryptData } from "../services/encryption";
 import createBackup from "../helpers/createBackup";
-const rimraf = require("rimraf");
 
 const miniServerController: IMiniserverController = {
   addNewServer: async (req, res) => {
@@ -256,6 +255,23 @@ const miniServerController: IMiniserverController = {
       });
 
       res.status(200).json({ message: "Successful" });
+    } catch (error) {
+      res.status(500).json({ message: "Server Error" });
+    }
+  },
+
+  backupNow: async (req, res) => {
+    try {
+      const { _id } = (req as IGetUserAuthInfoRequest).user;
+      const { _id: serverId } = req.query;
+
+      const user = await User.findOne({ _id, "servers._id": serverId });
+
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      await createBackup(user.servers[0] as IMiniserverDetails, _id);
+
+      res.status(200).json({ message: "Successfully created a backup." });
     } catch (error) {
       res.status(500).json({ message: "Server Error" });
     }

@@ -4,10 +4,19 @@ const limiter = rateLimit({
   max: 50,
   headers: true,
   handler: (_req, res) => {
+    res.status(429).json({ message: "Exceeded request limit." });
+  },
+});
+
+export const backupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour in milliseconds
+  max: 5,
+  handler: (_req, res) => {
     res
       .status(429)
-      .json({ message: "Too many requests, please try again later. " });
+      .json({ message: "Exceeded request limit. Allowance: 5 requests/hour." });
   },
+  headers: true,
 });
 
 export default limiter;

@@ -6,10 +6,11 @@ import miniserverRoutes from "./routes/miniserverRoutes";
 import backupTask from "./services/cronService";
 import path from "path";
 import authenticateToken from "./middlewares/authenticateToken";
-import limiter from "./middlewares/rateLimiter";
+import limiter, { backupLimiter } from "./middlewares/rateLimiter";
 import helmet from "helmet";
 import authController from "./controllers/authController";
-require('dotenv').config()
+import miniServerController from "./controllers/miniserverController";
+require("dotenv").config();
 
 const port: number = 3001;
 const app: Express = express();
@@ -21,15 +22,25 @@ app.use(cors());
 app.use(helmet());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use("/api/auth", authRoutes);
-app.post("/api/auth/change-pass", authenticateToken, authController.changePass);
+app.use("/api/auth", limiter, authRoutes);
 
+app.post(
+  "/api/miniserver/backup-now",
+  backupLimiter,
+  authenticateToken,
+  miniServerController.backupNow
+);
 app.use("/api/miniserver", limiter, authenticateToken, miniserverRoutes);
 
 app.use(express.static(path.join(__dirname, "/client")));
 
+app.use(function (req, res, next) {
+  res.header("Cross-Origin-Opener-Policy", "same-origin");
+  next();
+});
+
 app.get("*", (_req, res) => {
-  const filePath = path.join(__dirname, "/index.html");
+  const filePath = path.join(__dirname, "/client/index.html");
   res.sendFile(filePath);
 });
 

@@ -6,13 +6,13 @@ const router = express.Router();
 router.use(bodyParser.urlencoded({ extended: true }));
 
 router.post("/signup", authController.signUp);
+router.post("/change-pass", authController.changePass);
+router.post("/login", authController.loginHandler);
 
 // const otpHandler: RequestResponse = (req, res) => {
 //   authController.verifyOtp(req, res);
 // };
 // router.post("/verify-otp", otpHandler);
-
-router.post("/login", authController.loginHandler);
 
 // const forgotPassOtp: RequestResponse = (req, res) => {
 //   authController.forgotPassOtp(req, res);

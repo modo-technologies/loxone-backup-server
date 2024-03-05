@@ -49,6 +49,7 @@ export interface IMiniserverController {
   getBackups(req: Request, res: Response): Promise<any>;
   downloadBackup(req: Request, res: Response): Promise<any>;
   deleteBackup(req: Request, res: Response): Promise<any>;
+  backupNow(req: Request, res: Response): Promise<any>;
 }
 export interface IUserDetails {
   email: string;
